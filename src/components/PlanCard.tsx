@@ -8,10 +8,12 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import ReactMarkdown from "react-markdown";
 
 type PlanCardProps = {
   plan: {
     type: string;
+    name: string;
     plan: {
       week1: string;
       week2: string;
@@ -48,7 +50,8 @@ export default function PlanCard({ plan }: PlanCardProps) {
             {plan.type.charAt(0).toUpperCase() + plan.type.slice(1)} Developer
           </CardTitle>
           <CardDescription className="text-base mt-2">
-            Your personalized integration roadmap based on resume analysis
+            Your personalized integration roadmap based on resume analysis for{" "}
+            {plan.name}
           </CardDescription>
         </div>
       </CardHeader>
@@ -71,10 +74,10 @@ export default function PlanCard({ plan }: PlanCardProps) {
                     </h3>
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                   </div>
-
-                  <p className="text-muted-foreground text-pretty leading-relaxed">
-                    {week.content}
-                  </p>
+                  <ReactMarkdown>{week.content}</ReactMarkdown>
+                  {/*<p className="text-muted-foreground text-pretty leading-relaxed">*/}
+                  {/*  {week.content}*/}
+                  {/*</p>*/}
                 </div>
 
                 {index < weeks.length - 1 && (
