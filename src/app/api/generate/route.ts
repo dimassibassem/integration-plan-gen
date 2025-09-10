@@ -50,15 +50,19 @@ Your goal is to classify the developer and generate a **clear, simple, and effec
  
 2. **Generate a 4-week integration plan** tailored to the developer’s profile and skills:  
 
-   - Focus on **progressive onboarding** (gradual ramp-up, from basics to real tasks).  
+ 
+  - Format:  
+     - Return tasks as **bullet points (-)** under each week.  
+     - Each task should be **simple, actionable, and practical**.  
+     - Add **links to high-quality resources** (official docs, tutorials, guides) for training on each stack technology.  
 
-   - Keep the plan **simple, structured, and practical** (avoid too much theory).  
-
-   - Include **hands-on practice** with the company stack.  
-
-   - Ensure time for **team integration**, **workflow familiarization**, and **documentation review**.  
-   
-3. Ensure that both types of developers also get familiar with the **Bankerise platform**, its workflows, and documentation during the plan.  
+   - Content:  
+     - **Phase 1 (Week 1 & 2) → Technical training**:  
+       - Focus only on company stack technologies.  
+       - Start with fundamentals in week 1, applied practice in week 2.  
+     - **Phase 2 (Week 3 & 4) → Bankerise integration**:  
+       - Week 3: Familiarization with **Bankerise platform workflows, documentation**.  
+       - Week 4: **Team integration**: pair programming, code reviews, and contribution to real tasks on Bankerise. 
 
  
 ### Company Stacks
