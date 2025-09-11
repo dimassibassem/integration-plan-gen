@@ -8,22 +8,28 @@ export async function POST(req: Request) {
   const formData = await req.formData();
   const file = formData.get("file") as File;
   const planType = formData.get("planType");
+  const providedResumeText = (formData.get("resumeText") as string) || "";
   const integrationPeriod = 4;
 
-  if (!file) {
-    return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+  if (!file && !providedResumeText) {
+    return NextResponse.json({ error: "No file or resume text provided" }, { status: 400 });
   }
 
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(new Uint8Array(arrayBuffer));
+  let buffer: Buffer | null = null;
+  if (file) {
+    const arrayBuffer = await file.arrayBuffer();
+    buffer = Buffer.from(new Uint8Array(arrayBuffer));
+  }
 
-  let resumeText = "";
-  try {
-    const pdfData = await pdf(buffer);
-    resumeText = pdfData.text;
-  } catch (err) {
-    console.error("PDF parsing failed:", err);
-    return NextResponse.json({ error: "Could not parse PDF" }, { status: 500 });
+  let resumeText = providedResumeText;
+  if (!resumeText && buffer) {
+    try {
+      const pdfData = await pdf(buffer);
+      resumeText = pdfData.text;
+    } catch (err) {
+      console.error("PDF parsing failed:", err);
+      return NextResponse.json({ error: "Could not parse PDF" }, { status: 500 });
+    }
   }
 
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
