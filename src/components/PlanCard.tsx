@@ -74,7 +74,20 @@ export default function PlanCard({ plan }: PlanCardProps) {
                     </h3>
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                   </div>
-                  <ReactMarkdown>{week.content}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      a: ({ className, ...props }) => (
+                        <a
+                          {...props}
+                          className={(className ? className + " " : "") + "underline underline-offset-4 decoration-primary"}
+                          target="_blank"
+                          rel="noreferrer"
+                        />
+                      ),
+                    }}
+                  >
+                    {week.content}
+                  </ReactMarkdown>
                   {/*<p className="text-muted-foreground text-pretty leading-relaxed">*/}
                   {/*  {week.content}*/}
                   {/*</p>*/}
