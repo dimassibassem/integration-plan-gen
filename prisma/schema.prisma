@@ -1,0 +1,47 @@
+// Prisma schema for Supabase (PostgreSQL)
+// Set DATABASE_URL in .env.local to your Supabase connection string
+// Example: postgresql://postgres:YOUR_PASSWORD@db.xxxxxx.supabase.co:5432/postgres
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Resume {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  rawText    String
+
+  fullName   String   @default("")
+  email      String   @default("")
+  phone      String   @default("")
+  summary    String   @default("")
+  skills     Json
+  experience Json
+  education  Json
+  links      Json
+
+  plans      Plan[]
+}
+
+model Plan {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+
+  type       String
+  name       String
+  week1      String
+  week2      String
+  week3      String
+  week4      String
+
+  resumeId   String?
+  resume     Resume?  @relation(fields: [resumeId], references: [id])
+
+  @@index([resumeId])
+}

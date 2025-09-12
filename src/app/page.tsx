@@ -250,6 +250,7 @@ export default function Home() {
       // Structure CV
       const sRes = await fetch("/api/structure", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
       if (sRes.ok) {
