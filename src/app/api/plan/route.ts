@@ -59,10 +59,10 @@ export async function PUT(req: Request) {
     if (body?.resumeId != null) data.resumeId = String(body.resumeId);
 
     if (body?.plan) {
-      if (body.plan.week1 != null) data.week1 = String(body.plan.week1);
-      if (body.plan.week2 != null) data.week2 = String(body.plan.week2);
-      if (body.plan.week3 != null) data.week3 = String(body.plan.week3);
-      if (body.plan.week4 != null) data.week4 = String(body.plan.week4);
+      if (body.plan.week1 != null) (data as any).week1 = String(body.plan.week1);
+      if (body.plan.week2 != null) (data as any).week2 = String(body.plan.week2);
+      if (body.plan.week3 != null) (data as any).week3 = String(body.plan.week3);
+      if (body.plan.week4 != null) (data as any).week4 = String(body.plan.week4);
     }
 
     const updated = await prisma.plan.update({ where: { id }, data, select: { id: true } });
