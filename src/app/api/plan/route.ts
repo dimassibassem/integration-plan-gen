@@ -44,7 +44,16 @@ export async function PUT(req: Request) {
     if (!id) {
       return NextResponse.json({ error: "Missing plan id" }, { status: 400 });
     }
-    const data: any = {};
+    type PlanUpdate = Partial<{
+      type: string;
+      name: string;
+      resumeId: string | null;
+      week1: string;
+      week2: string;
+      week3: string;
+      week4: string;
+    }>;
+    const data: PlanUpdate = {};
     if (body?.type != null) data.type = String(body.type);
     if (body?.name != null) data.name = String(body.name);
     if (body?.resumeId != null) data.resumeId = String(body.resumeId);

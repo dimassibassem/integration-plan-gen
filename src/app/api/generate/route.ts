@@ -44,10 +44,10 @@ export async function POST(req: Request) {
       fullNameFromForm = cv.fullName || "";
       const skills = Array.isArray(cv.skills) ? cv.skills.join(", ") : "";
       const exp = Array.isArray(cv.experience)
-        ? cv.experience.map((e) => `${e?.role || ""} at ${e?.company || ""} (${e?.start || ""} - ${e?.end || ""})\n${e?.description || ""}`)
+        ? cv.experience.map((e: CVExperience) => `${e?.role || ""} at ${e?.company || ""} (${e?.start || ""} - ${e?.end || ""})\n${e?.description || ""}`)
         : [] as string[];
       const edu = Array.isArray(cv.education)
-        ? cv.education.map((e) => `${e?.degree || ""} - ${e?.school || ""} (${e?.start || ""} - ${e?.end || ""})`)
+        ? cv.education.map((e: CVEducation) => `${e?.degree || ""} - ${e?.school || ""} (${e?.start || ""} - ${e?.end || ""})`)
         : [] as string[];
       const links = Array.isArray(cv.links) ? cv.links.join(", ") : "";
       resumeText = [
@@ -160,9 +160,10 @@ Return a **valid JSON string** following this structure:
     let result;
   try {
     result = await model.generateContent(prompt);
-  } catch (e: any) {
-    console.error("Gemini generateContent failed", e?.message || e);
-    const msg = /API key/i.test(e?.message || "") ? "Invalid or missing GEMINI_API_KEY" : "LLM call failed";
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("Gemini generateContent failed", message);
+    const msg = /API key/i.test(message) ? "Invalid or missing GEMINI_API_KEY" : "LLM call failed";
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 
