@@ -44,16 +44,16 @@ export async function PUT(req: Request) {
     if (!id) {
       return NextResponse.json({ error: "Missing plan id" }, { status: 400 });
     }
-    const data: any = {};
-    if (body?.type != null) data.type = String(body.type);
-    if (body?.name != null) data.name = String(body.name);
-    if (body?.resumeId != null) data.resumeId = String(body.resumeId);
+    const data: Partial<{ type: string; name: string; resumeId: string | null; week1: string; week2: string; week3: string; week4: string; }> = {};
+    if (body?.type != null) (data as any).type = String(body.type);
+    if (body?.name != null) (data as any).name = String(body.name);
+    if (body?.resumeId != null) (data as any).resumeId = String(body.resumeId);
 
     if (body?.plan) {
-      if (body.plan.week1 != null) data.week1 = String(body.plan.week1);
-      if (body.plan.week2 != null) data.week2 = String(body.plan.week2);
-      if (body.plan.week3 != null) data.week3 = String(body.plan.week3);
-      if (body.plan.week4 != null) data.week4 = String(body.plan.week4);
+      if (body.plan.week1 != null) (data as any).week1 = String(body.plan.week1);
+      if (body.plan.week2 != null) (data as any).week2 = String(body.plan.week2);
+      if (body.plan.week3 != null) (data as any).week3 = String(body.plan.week3);
+      if (body.plan.week4 != null) (data as any).week4 = String(body.plan.week4);
     }
 
     const updated = await prisma.plan.update({ where: { id }, data, select: { id: true } });
