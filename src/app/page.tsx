@@ -3,7 +3,7 @@ import { useState } from "react"
 import type React from "react"
 
 import { useMutation } from "@tanstack/react-query"
-import { Upload, FileText, Sparkles, CheckCircle, AlertCircle, Download, Copy, Trash2 } from "lucide-react"
+import { Upload, FileText, Sparkles, CheckCircle, AlertCircle, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import PlanCard from "@/components/PlanCard"
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
+import CVForm, { type CVData } from "@/components/cv/CVForm"
 
 export default function Home() {
     const [file, setFile] = useState<File | null>(null)
@@ -19,6 +20,7 @@ export default function Home() {
     const [planType, setPlanType] = useState<"frontend" | "backend">("frontend")
     const [cvText, setCvText] = useState("")
     const [isExtracting, setIsExtracting] = useState(false)
+    const [structuredCV, setStructuredCV] = useState<CVData | null>(null)
     async function exportPlanAsPdf(plan: {
         type: string
         name: string
@@ -106,17 +108,18 @@ export default function Home() {
         URL.revokeObjectURL(url)
     }
 
-    // Mutation for generating plan from edited text (no file required)
+    // Generated plan state
     const [displayPlan, setDisplayPlan] = useState<any | null>(null)
     const [planSource, setPlanSource] = useState<"file" | "edited" | null>(null)
 
-    const textPlanMutation = useMutation({
-        mutationFn: async () => {
+    // Mutation for generating plan from structured form (cvData)
+    const formPlanMutation = useMutation({
+        mutationFn: async (cv: any) => {
             const formData = new FormData()
             formData.append("planType", planType)
-            formData.append("resumeText", cvText)
+            formData.append("cvData", JSON.stringify(cv))
             const res = await fetch("/api/generate", { method: "POST", body: formData })
-            if (!res.ok) throw new Error("Failed to generate plan from edited CV")
+            if (!res.ok) throw new Error("Failed to generate plan from form data")
             return await res.json()
         },
         onSuccess: (data) => {
@@ -126,27 +129,6 @@ export default function Home() {
     })
 
     // No persistent storage for edited CV text
-
-    const mutation = useMutation({
-        mutationFn: async (file: File) => {
-            const formData = new FormData()
-            formData.append("file", file)
-            formData.append("planType", planType)
-
-            const res = await fetch("/api/generate", {
-                method: "POST",
-                body: formData,
-            })
-
-            if (!res.ok) throw new Error("Failed to generate plan")
-
-            return await res.json()
-        },
-        onSuccess: (data) => {
-            setDisplayPlan(data)
-            setPlanSource("file")
-        },
-    })
 
     const handleDrag = (e: React.DragEvent) => {
         e.preventDefault()
@@ -237,7 +219,51 @@ export default function Home() {
                                 <input
                                     type="file"
                                     accept="application/pdf"
-                                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                                    onChange={async (e) => {
+                                        const f = e.target.files?.[0] || null
+                                        setFile(f)
+                                        if (f && !isExtracting) {
+                                            // auto-extract on select
+                                            const fd = new FormData()
+                                            fd.append("file", f)
+                                            setIsExtracting(true)
+                                            try {
+                                                const res = await fetch("/api/extract", { method: "POST", body: fd })
+                                                if (!res.ok) throw new Error("Failed to extract text")
+                                                const data = await res.json()
+                                                const rawText = data.text || ""
+                                                setCvText(rawText)
+                                                try {
+                                                    const sRes = await fetch("/api/structure", { method: "POST", body: JSON.stringify({ text: rawText }) })
+                                                    if (sRes.ok) {
+                                                        const s = await sRes.json()
+                                                        setStructuredCV({
+                                                            fullName: s.data.fullName || "",
+                                                            email: s.data.email || "",
+                                                            phone: s.data.phone || "",
+                                                            summary: s.data.summary || "",
+                                                            skills: Array.isArray(s.data.skills) ? s.data.skills : [],
+                                                            experience: Array.isArray(s.data.experience) ? s.data.experience : [],
+                                                            education: Array.isArray(s.data.education) ? s.data.education : [],
+                                                            links: Array.isArray(s.data.links) ? s.data.links : [],
+                                                        })
+                                                    } else {
+                                                        setStructuredCV(null)
+                                                    }
+                                                } catch {
+                                                    setStructuredCV(null)
+                                                }
+                                                setTimeout(() => {
+                                                    const el = document.getElementById("cv-form")
+                                                    el?.scrollIntoView({ behavior: "smooth" })
+                                                }, 0)
+                                            } catch (e) {
+                                                console.error(e)
+                                            } finally {
+                                                setIsExtracting(false)
+                                            }
+                                        }
+                                    }}
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                 />
 
@@ -252,7 +278,7 @@ export default function Home() {
                                             <p className="text-sm text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                                             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                                                 <CheckCircle className="w-3 h-3 mr-1" />
-                                                Ready to analyze
+                                                {isExtracting ? "Extracting..." : "Ready"}
                                             </Badge>
                                         </div>
                                     ) : (
@@ -265,153 +291,31 @@ export default function Home() {
                             </div>
 
                             <div className="mt-6 flex justify-center gap-3">
-                                <Button
-                                    onClick={() => file && mutation.mutate(file)}
-                                    disabled={!file || mutation.isPending}
-                                    size="lg"
-                                    className="min-w-[200px]"
-                                >
-                                    {mutation.isPending ? (
-                                        <>
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                                            Analyzing Resume...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Sparkles className="w-4 h-4 mr-2" />
-                                            Generate Integration Plan
-                                        </>
-                                    )}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={async () => {
-                                        if (!file || isExtracting) return
-                                        setIsExtracting(true)
-                                        try {
-                                            const fd = new FormData()
-                                            fd.append("file", file)
-                                            const res = await fetch("/api/extract", { method: "POST", body: fd })
-                                            if (!res.ok) throw new Error("Failed to extract text")
-                                            const data = await res.json()
-                                            setCvText(data.text || "")
-                                            // Scroll into view after extraction
-                                            setTimeout(() => {
-                                                const el = document.getElementById("cv-editor")
-                                                el?.scrollIntoView({ behavior: "smooth" })
-                                            }, 0)
-                                        } catch (e) {
-                                            console.error(e)
-                                        } finally {
-                                            setIsExtracting(false)
-                                        }
-                                    }}
-                                    disabled={!file || isExtracting}
-                                    size="lg"
-                                >
-                                    {isExtracting ? (
-                                        <>
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                                            Extracting...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <FileText className="w-4 h-4 mr-1" /> Edit CV
-                                        </>
-                                    )}
-                                </Button>
+                                {isExtracting && (
+                                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                        <div className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
+                                        Extracting details...
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
 
-                    {mutation.isError && (
-                        <Alert variant="destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>{(mutation.error as Error).message}</AlertDescription>
-                        </Alert>
+                    
+
+                    {/* Prefilled structured form */}
+                    {structuredCV && (
+                        <div id="cv-form">
+                            <CVForm
+                                initial={structuredCV}
+                                planType={planType}
+                                isGenerating={formPlanMutation.isPending}
+                                onGenerate={(cv) => formPlanMutation.mutate(cv)}
+                            />
+                                </div>
                     )}
 
-                    {/* CV Editor shown after clicking Edit CV */}
-                    {cvText && (
-                        <Card id="cv-editor">
-                            <CardHeader className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle className="text-xl">Editable CV</CardTitle>
-                                        <CardDescription className="text-sm">{file?.name || "Extracted text"}</CardDescription>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Badge variant="secondary" className="text-xs">
-                                            {cvText.trim().split(/\s+/).filter(Boolean).length} words
-                                        </Badge>
-                                        <Badge variant="outline" className="text-xs">
-                                            {cvText.length} chars
-                                        </Badge>
-                                    </div>
-                                </div>
-                                <div className="flex flex-wrap gap-2 justify-end">
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => navigator.clipboard.writeText(cvText)}
-                                    >
-                                        <Copy className="w-4 h-4" /> Copy
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => setCvText("")}
-                                    >
-                                        <Trash2 className="w-4 h-4" /> Clear
-                                    </Button>
-                                    {/* Save changes removed per request */}
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            const blob = new Blob([cvText], { type: "text/plain;charset=utf-8" })
-                                            const url = URL.createObjectURL(blob)
-                                            const a = document.createElement("a")
-                                            a.href = url
-                                            a.download = "cv.txt"
-                                            a.click()
-                                            URL.revokeObjectURL(url)
-                                        }}
-                                        disabled={!cvText}
-                                    >
-                                        <Download className="w-4 h-4" /> .txt
-                                    </Button>
-                                    <Button
-                                        onClick={() => {
-                                            const blob = new Blob([JSON.stringify({ text: cvText }, null, 2)], {
-                                                type: "application/json;charset=utf-8",
-                                            })
-                                            const url = URL.createObjectURL(blob)
-                                            const a = document.createElement("a")
-                                            a.href = url
-                                            a.download = "cv.json"
-                                            a.click()
-                                            URL.revokeObjectURL(url)
-                                        }}
-                                        disabled={!cvText}
-                                    >
-                                        <Download className="w-4 h-4" /> .json
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <textarea
-                                    value={cvText}
-                                    onChange={(e) => setCvText(e.target.value)}
-                                    rows={16}
-                                    className="w-full border rounded-md p-4 text-sm bg-background leading-7 tracking-wide selection:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                />
-                                <div className="flex justify-end">
-                                    <Button onClick={() => textPlanMutation.mutate()} disabled={!cvText || textPlanMutation.isPending}>
-                                        {textPlanMutation.isPending ? "Generating..." : "Use this edited CV for plan"}
-                                    </Button>
-                                </div>
-                                <p className="text-xs text-muted-foreground">Tip: You can paste more details or correct OCR errors before generating your plan.</p>
-                            </CardContent>
-                        </Card>
-                    )}
+                    
                     {displayPlan && (
                         <div className="space-y-4">
                             <div className="text-center">
@@ -431,10 +335,10 @@ export default function Home() {
                             <PlanCard plan={displayPlan} />
                         </div>
                     )}
-                    {textPlanMutation.isError && (
+                    {formPlanMutation.isError && (
                         <Alert variant="destructive">
                             <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>{(textPlanMutation.error as Error).message}</AlertDescription>
+                            <AlertDescription>{(formPlanMutation.error as Error).message}</AlertDescription>
                         </Alert>
                     )}
                 </div>

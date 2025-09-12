@@ -9,9 +9,10 @@ export async function POST(req: Request) {
   const file = formData.get("file") as File;
   const planType = formData.get("planType");
   const providedResumeText = (formData.get("resumeText") as string) || "";
+  const cvDataJson = (formData.get("cvData") as string) || "";
   const integrationPeriod = 4;
 
-  if (!file && !providedResumeText) {
+  if (!file && !providedResumeText && !cvDataJson) {
     return NextResponse.json({ error: "No file or resume text provided" }, { status: 400 });
   }
 
@@ -22,6 +23,30 @@ export async function POST(req: Request) {
   }
 
   let resumeText = providedResumeText;
+  let fullNameFromForm = "";
+  if (!resumeText && cvDataJson) {
+    try {
+      const cv = JSON.parse(cvDataJson);
+      fullNameFromForm = cv.fullName || "";
+      const skills = Array.isArray(cv.skills) ? cv.skills.join(", ") : "";
+      const exp = Array.isArray(cv.experience)
+        ? cv.experience.map((e: any) => `${e.role || ""} at ${e.company || ""} (${e.start || ""} - ${e.end || ""})\n${e.description || ""}`)
+        : [];
+      const edu = Array.isArray(cv.education)
+        ? cv.education.map((e: any) => `${e.degree || ""} - ${e.school || ""} (${e.start || ""} - ${e.end || ""})`)
+        : [];
+      const links = Array.isArray(cv.links) ? cv.links.join(", ") : "";
+      resumeText = [
+        cv.summary || "",
+        skills ? `Skills: ${skills}` : "",
+        ...exp,
+        ...edu,
+        links ? `Links: ${links}` : "",
+      ].filter(Boolean).join("\n\n");
+    } catch (e) {
+      console.error("Failed to parse cvData", e);
+    }
+  }
   if (!resumeText && buffer) {
     try {
       const pdfData = await pdf(buffer);
@@ -31,6 +56,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Could not parse PDF" }, { status: 500 });
     }
   }
+
 
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   const prompt = `
@@ -53,8 +79,13 @@ Your goal is to classify the developer and generate a **clear, simple, and effec
    - **frontend** (React, React Native, web/mobile)  
 
    - **backend** (Java, Spring Boot, databases, services)  
- 
-2. **Generate a 4-week integration plan** tailored to the developer’s profile and skills:  
+   
+2. **Analyze the resume** to detect which technologies the developer already has experience with.  
+   - If the developer has worked with a technology that overlaps with the company stack, mark it as "strength".  
+   - If the developer has experience in a similar but different technology (e.g., Angular vs React), mark it as "needs focus".  
+   - Prioritize training on **technologies they don’t know well but are part of the company stack**.  
+
+3. **Generate a 4-week integration plan** tailored to the developer’s profile and skills:  
 
  
   - Format:  
@@ -75,7 +106,7 @@ Your goal is to classify the developer and generate a **clear, simple, and effec
 
 - **Frontend**  
 
-  * React: React Query, Redux-Saga, Formik, Yup, Chakra v2, Monorepos, Lerna, Vite  
+  * React: React Query, Redux-Saga, Formik, Yup, Chakra v2, Monorepos, Lerna, Vite 
 
   * React Native: React Query, Zustand, Keychain, MMKV, Zod, React Hook Form  
  
@@ -92,8 +123,8 @@ Your goal is to classify the developer and generate a **clear, simple, and effec
 ### Output Format
 Return a **valid JSON string** following this structure:
 {
-  "type": ${planType},
-  "name": developer's full name from resume,
+  "type": ${JSON.stringify(planType)},
+  "name": ${JSON.stringify(fullNameFromForm || "developer's full name from resume")},
   
   "plan": {
 
@@ -117,6 +148,9 @@ Return a **valid JSON string** following this structure:
   planText = planText.replace(/^```json\s*/, "").replace(/\s*```$/, "");
 
   const plan = JSON.parse(planText);
+  if (fullNameFromForm) {
+    plan.name = fullNameFromForm;
+  }
 
   return NextResponse.json(plan);
 }
