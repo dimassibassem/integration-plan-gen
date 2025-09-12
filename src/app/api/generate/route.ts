@@ -3,12 +3,22 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import pdf from "pdf-parse";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+type CVExperience = { company?: string; role?: string; start?: string; end?: string; description?: string };
+type CVEducation = { school?: string; degree?: string; start?: string; end?: string };
+type CVData = {
+  fullName?: string;
+  summary?: string;
+  skills?: string[];
+  experience?: CVExperience[];
+  education?: CVEducation[];
+  links?: string[];
+};
 
 export async function POST(req: Request) {
   const formData = await req.formData();
   const file = formData.get("file") as File;
   const planType = formData.get("planType");
-  const providedResumeText = (formData.get("resumeText") as string) || "";
+    const providedResumeText = (formData.get("resumeText") as string) || "";
   const cvDataJson = (formData.get("cvData") as string) || "";
   const integrationPeriod = 4;
 
@@ -26,15 +36,16 @@ export async function POST(req: Request) {
   let fullNameFromForm = "";
   if (!resumeText && cvDataJson) {
     try {
-      const cv = JSON.parse(cvDataJson);
+
+      const cv: CVData = JSON.parse(cvDataJson) as CVData;
       fullNameFromForm = cv.fullName || "";
       const skills = Array.isArray(cv.skills) ? cv.skills.join(", ") : "";
       const exp = Array.isArray(cv.experience)
-        ? cv.experience.map((e: any) => `${e.role || ""} at ${e.company || ""} (${e.start || ""} - ${e.end || ""})\n${e.description || ""}`)
-        : [];
+        ? cv.experience.map((e) => `${e?.role || ""} at ${e?.company || ""} (${e?.start || ""} - ${e?.end || ""})\n${e?.description || ""}`)
+        : [] as string[];
       const edu = Array.isArray(cv.education)
-        ? cv.education.map((e: any) => `${e.degree || ""} - ${e.school || ""} (${e.start || ""} - ${e.end || ""})`)
-        : [];
+        ? cv.education.map((e) => `${e?.degree || ""} - ${e?.school || ""} (${e?.start || ""} - ${e?.end || ""})`)
+        : [] as string[];
       const links = Array.isArray(cv.links) ? cv.links.join(", ") : "";
       resumeText = [
         cv.summary || "",
@@ -140,7 +151,7 @@ Return a **valid JSON string** following this structure:
 }
 `;
 
-  const result = await model.generateContent(prompt);
+    const result = await model.generateContent(prompt);
 
   let planText = result.response.text().trim();
 

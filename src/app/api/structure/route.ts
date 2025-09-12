@@ -3,6 +3,32 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
+type Experience = {
+  company: string;
+  role: string;
+  start: string;
+  end: string;
+  description: string;
+}
+
+type Education = {
+  school: string;
+  degree: string;
+  start: string;
+  end: string;
+}
+
+export type ResumeData = {
+  fullName: string;
+  email: string;
+  phone: string;
+  summary: string;
+  skills: string[];
+  experience: Experience[];
+  education: Education[];
+  links: string[];
+}
+
 export async function POST(req: Request) {
   try {
     const { text } = await req.json();
@@ -37,7 +63,7 @@ ${text}
     const raw = result.response.text();
 
     // Try to parse JSON from the model output
-    let data: any;
+    let data: ResumeData;
     try {
       const jsonString = raw.trim().replace(/^```json\n?|```$/g, "");
       data = JSON.parse(jsonString);

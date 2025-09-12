@@ -34,6 +34,26 @@ export function CVForm({
   const [cv, setCv] = useState<CVData>(initial)
   useEffect(() => setCv(initial), [initial])
 
+  const handleAddExperience = () => {
+    setCv({
+      ...cv,
+      experience: [
+        ...cv.experience,
+        { company: "", role: "", start: "", end: "", description: "" },
+      ],
+    })
+  }
+
+  const handleAddEducation = () => {
+    setCv({
+      ...cv,
+      education: [
+        ...cv.education,
+        { school: "", degree: "", start: "", end: "" },
+      ],
+    })
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -63,7 +83,7 @@ export function CVForm({
             />
           </div>
           <div className="md:col-span-2 space-y-1.5">
-            <Label>Skills (comma separated)</Label>
+            <Label>Skills</Label>
             <Input
               value={cv.skills.join(", ")}
               onChange={(e) => setCv({ ...cv, skills: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
@@ -74,7 +94,7 @@ export function CVForm({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>Experience</Label>
-            <Button type="button" variant="outline" onClick={() => setCv({ ...cv, experience: [...cv.experience, { company: "", role: "", start: "", end: "", description: "" }] })}>Add</Button>
+            <Button type="button" variant="outline" onClick={handleAddExperience}>Add</Button>
           </div>
           {cv.experience.map((exp, idx) => (
             <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-3 border rounded-md p-3">
@@ -115,7 +135,7 @@ export function CVForm({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>Education</Label>
-            <Button type="button" variant="outline" onClick={() => setCv({ ...cv, education: [...cv.education, { school: "", degree: "", start: "", end: "" }] })}>Add</Button>
+            <Button type="button" variant="outline" onClick={handleAddEducation}>Add</Button>
           </div>
           {cv.education.map((ed, idx) => (
             <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-3 border rounded-md p-3">
@@ -148,7 +168,7 @@ export function CVForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label>Links (comma separated)</Label>
+          <Label>Links</Label>
           <Input value={cv.links.join(", ")} onChange={(e) => setCv({ ...cv, links: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
         </div>
 
