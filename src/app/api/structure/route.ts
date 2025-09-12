@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import prisma from "@/lib/prisma";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const apiKey = process.env.GEMINI_API_KEY;
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 type Experience = {
   company: string;
@@ -36,6 +38,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing text" }, { status: 400 });
     }
 
+    if (!genAI) {
+      return NextResponse.json({ error: "Server misconfiguration: missing GEMINI_API_KEY" }, { status: 500 });
+    }
+
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const prompt = `Extract a resume into structured JSON. Return ONLY JSON.
 Schema:
@@ -59,8 +65,15 @@ Resume text:
 ${text}
 """`;
 
-    const result = await model.generateContent(prompt);
-    const raw = result.response.text();
+    let raw: string;
+    try {
+      const result = await model.generateContent(prompt);
+      raw = result.response.text();
+    } catch (e: any) {
+      console.error("Gemini generateContent failed", e?.message || e);
+      const msg = /API key/i.test(e?.message || "") ? "Invalid or missing GEMINI_API_KEY" : "LLM call failed";
+      return NextResponse.json({ error: msg }, { status: 502 });
+    }
 
     // Try to parse JSON from the model output
     let data: ResumeData;
@@ -81,7 +94,29 @@ ${text}
       };
     }
 
-    return NextResponse.json({ data });
+    // Persist resume into database (optional). If DB is unreachable, still return data.
+    let resumeId: string | null = null;
+    try {
+      const resume = await prisma.resume.create({
+        data: {
+          rawText: text,
+          fullName: data.fullName || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          summary: data.summary || "",
+          skills: data.skills ?? [],
+          experience: data.experience ?? [],
+          education: data.education ?? [],
+          links: data.links ?? [],
+        },
+        select: { id: true },
+      });
+      resumeId = resume.id;
+    } catch (e) {
+      console.error("Failed to persist resume", e);
+    }
+
+    return NextResponse.json({ data, resumeId });
   } catch (error) {
     console.error("/api/structure error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

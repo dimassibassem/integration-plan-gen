@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import pdf from "pdf-parse";
+import prisma from "@/lib/prisma";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const apiKey = process.env.GEMINI_API_KEY;
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 type CVExperience = { company?: string; role?: string; start?: string; end?: string; description?: string };
 type CVEducation = { school?: string; degree?: string; start?: string; end?: string };
 type CVData = {
@@ -18,8 +20,9 @@ export async function POST(req: Request) {
   const formData = await req.formData();
   const file = formData.get("file") as File;
   const planType = formData.get("planType");
-    const providedResumeText = (formData.get("resumeText") as string) || "";
+  const providedResumeText = (formData.get("resumeText") as string) || "";
   const cvDataJson = (formData.get("cvData") as string) || "";
+  const resumeId = ((formData.get("resumeId") as string) || "").trim() || undefined;
   const integrationPeriod = 4;
 
   if (!file && !providedResumeText && !cvDataJson) {
@@ -69,6 +72,9 @@ export async function POST(req: Request) {
   }
 
 
+  if (!genAI) {
+    return NextResponse.json({ error: "Server misconfiguration: missing GEMINI_API_KEY" }, { status: 500 });
+  }
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   const prompt = `
 You are an AI assistant helping to onboard a new developer.  
@@ -151,7 +157,14 @@ Return a **valid JSON string** following this structure:
 }
 `;
 
-    const result = await model.generateContent(prompt);
+    let result;
+  try {
+    result = await model.generateContent(prompt);
+  } catch (e: any) {
+    console.error("Gemini generateContent failed", e?.message || e);
+    const msg = /API key/i.test(e?.message || "") ? "Invalid or missing GEMINI_API_KEY" : "LLM call failed";
+    return NextResponse.json({ error: msg }, { status: 502 });
+  }
 
   let planText = result.response.text().trim();
 
@@ -163,5 +176,24 @@ Return a **valid JSON string** following this structure:
     plan.name = fullNameFromForm;
   }
 
-  return NextResponse.json(plan);
+  // Persist plan to database
+  try {
+    const saved = await prisma.plan.create({
+      data: {
+        type: String(plan.type || planType || "unknown"),
+        name: String(plan.name || ""),
+        week1: String(plan.plan?.week1 || ""),
+        week2: String(plan.plan?.week2 || ""),
+        week3: String(plan.plan?.week3 || ""),
+        week4: String(plan.plan?.week4 || ""),
+        resumeId: resumeId || null,
+      },
+      select: { id: true },
+    });
+    return NextResponse.json({ ...plan, planId: saved.id });
+  } catch (e) {
+    console.error("Failed to persist plan", e);
+    // Still return the plan even if persistence failed
+    return NextResponse.json({ ...plan, planId: null });
+  }
 }
