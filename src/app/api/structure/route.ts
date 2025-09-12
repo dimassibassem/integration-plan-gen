@@ -67,7 +67,7 @@ ${text}
     try {
       const jsonString = raw.trim().replace(/^```json\n?|```$/g, "");
       data = JSON.parse(jsonString);
-    } catch (e) {
+    } catch {
       // Fallback minimal structure
       data = {
         fullName: "",

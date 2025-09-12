@@ -76,7 +76,7 @@ export default function PlanCard({ plan }: PlanCardProps) {
                   </div>
                   <ReactMarkdown
                     components={{
-                      a: ({ node, className, ...props }) => (
+                      a: ({ className, ...props }) => (
                         <a
                           {...props}
                           className={(className ? className + " " : "") + "underline underline-offset-4 decoration-primary"}

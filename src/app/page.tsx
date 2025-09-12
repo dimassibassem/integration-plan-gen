@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import PlanCard from "@/components/PlanCard"
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
+import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib"
 import CVForm, { type CVData } from "@/components/cv/CVForm"
 
 //
@@ -37,11 +37,11 @@ const LINE_HEIGHT = 14
 //
 function drawTextWithWrap(
     doc: PDFDocument,
-    page: any,
+    page: PDFPage,
     text: string,
     yRef: { current: number },
-    font: any,
-    fontBold: any,
+    font: PDFFont,
+    fontBold: PDFFont,
     maxWidth: number,
     bold = false
 ) {
@@ -316,7 +316,6 @@ export default function Home() {
                         <div id="cv-form">
                             <CVForm
                                 initial={structuredCV}
-                                planType={planType}
                                 isGenerating={formPlanMutation.isPending}
                                 onGenerate={(cv) => formPlanMutation.mutate(cv)}
                             />

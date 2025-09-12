@@ -23,12 +23,10 @@ export type CVData = {
 export function CVForm({
   initial,
   onGenerate,
-  planType,
   isGenerating,
 }: {
   initial: CVData
   onGenerate: (cv: CVData) => void
-  planType: "frontend" | "backend"
   isGenerating?: boolean
 }) {
   const [cv, setCv] = useState<CVData>(initial)
